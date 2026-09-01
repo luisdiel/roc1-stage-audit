@@ -9,7 +9,7 @@ DD121 only active barcode positions (1,3,4,6,7,8,9,15,16 are disabled).
 
 PAIRS = [
     # ── West Zone (DD115 → DD123) ── 187 locations
-    # DD115 — 37 positions
+    # DD115 — 36 positions
     ("STG-DD115-1", "West"),
     ("STG-DD115-2", "West"),
     ("STG-DD115-3", "West"),
@@ -46,7 +46,6 @@ PAIRS = [
     ("STG-DD115-34", "West"),
     ("STG-DD115-35", "West"),
     ("STG-DD115-36", "West"),
-    ("STG-DD115-37", "West"),
     # DD116 — 14 positions
     ("STG-DD116-1", "West"),
     ("STG-DD116-2", "West"),
@@ -163,7 +162,7 @@ PAIRS = [
     ("STG-DD121-12", "West"),
     ("STG-DD121-13", "West"),
     ("STG-DD121-14", "West"),
-    # DD122 — 18 positions
+    # DD122 — 14 positions
     ("STG-DD122-1", "West"),
     ("STG-DD122-2", "West"),
     ("STG-DD122-3", "West"),
@@ -178,11 +177,7 @@ PAIRS = [
     ("STG-DD122-12", "West"),
     ("STG-DD122-13", "West"),
     ("STG-DD122-14", "West"),
-    ("STG-DD122-15", "West"),
-    ("STG-DD122-16", "West"),
-    ("STG-DD122-17", "West"),
-    ("STG-DD122-18", "West"),
-    # DD123 — 23 positions
+    # DD123 — 28 positions
     ("STG-DD123-1", "West"),
     ("STG-DD123-2", "West"),
     ("STG-DD123-3", "West"),
@@ -206,9 +201,14 @@ PAIRS = [
     ("STG-DD123-21", "West"),
     ("STG-DD123-22", "West"),
     ("STG-DD123-23", "West"),
+    ("STG-DD123-24", "West"),
+    ("STG-DD123-25", "West"),
+    ("STG-DD123-26", "West"),
+    ("STG-DD123-27", "West"),
+    ("STG-DD123-28", "West"),
 
     # ── East Zone (DD124 → DD132, excl. DD129) ── 154 locations
-    # DD124 — 18 positions
+    # DD124 — 14 positions
     ("STG-DD124-1", "East"),
     ("STG-DD124-2", "East"),
     ("STG-DD124-3", "East"),
@@ -223,11 +223,7 @@ PAIRS = [
     ("STG-DD124-12", "East"),
     ("STG-DD124-13", "East"),
     ("STG-DD124-14", "East"),
-    ("STG-DD124-15", "East"),
-    ("STG-DD124-16", "East"),
-    ("STG-DD124-17", "East"),
-    ("STG-DD124-18", "East"),
-    # DD125 — 18 positions
+    # DD125 — 14 positions
     ("STG-DD125-1", "East"),
     ("STG-DD125-2", "East"),
     ("STG-DD125-3", "East"),
@@ -242,11 +238,7 @@ PAIRS = [
     ("STG-DD125-12", "East"),
     ("STG-DD125-13", "East"),
     ("STG-DD125-14", "East"),
-    ("STG-DD125-15", "East"),
-    ("STG-DD125-16", "East"),
-    ("STG-DD125-17", "East"),
-    ("STG-DD125-18", "East"),
-    # DD126 — 18 positions
+    # DD126 — 28 positions
     ("STG-DD126-1", "East"),
     ("STG-DD126-2", "East"),
     ("STG-DD126-3", "East"),
@@ -265,7 +257,17 @@ PAIRS = [
     ("STG-DD126-16", "East"),
     ("STG-DD126-17", "East"),
     ("STG-DD126-18", "East"),
-    # DD127 — 18 positions
+    ("STG-DD126-19", "East"),
+    ("STG-DD126-20", "East"),
+    ("STG-DD126-21", "East"),
+    ("STG-DD126-22", "East"),
+    ("STG-DD126-23", "East"),
+    ("STG-DD126-24", "East"),
+    ("STG-DD126-25", "East"),
+    ("STG-DD126-26", "East"),
+    ("STG-DD126-27", "East"),
+    ("STG-DD126-28", "East"),
+    # DD127 — 16 positions
     ("STG-DD127-1", "East"),
     ("STG-DD127-2", "East"),
     ("STG-DD127-3", "East"),
@@ -282,8 +284,6 @@ PAIRS = [
     ("STG-DD127-14", "East"),
     ("STG-DD127-15", "East"),
     ("STG-DD127-16", "East"),
-    ("STG-DD127-17", "East"),
-    ("STG-DD127-18", "East"),
     # DD128 — 18 positions
     ("STG-DD128-1", "East"),
     ("STG-DD128-2", "East"),
@@ -304,7 +304,7 @@ PAIRS = [
     ("STG-DD128-17", "East"),
     ("STG-DD128-18", "East"),
     # DD129 — EXCLUDED (Protheus Robotic)
-    # DD130 — 28 positions
+    # DD130 — 16 positions
     ("STG-DD130-1", "East"),
     ("STG-DD130-2", "East"),
     ("STG-DD130-3", "East"),
@@ -321,19 +321,7 @@ PAIRS = [
     ("STG-DD130-14", "East"),
     ("STG-DD130-15", "East"),
     ("STG-DD130-16", "East"),
-    ("STG-DD130-17", "East"),
-    ("STG-DD130-18", "East"),
-    ("STG-DD130-19", "East"),
-    ("STG-DD130-20", "East"),
-    ("STG-DD130-21", "East"),
-    ("STG-DD130-22", "East"),
-    ("STG-DD130-23", "East"),
-    ("STG-DD130-24", "East"),
-    ("STG-DD130-25", "East"),
-    ("STG-DD130-26", "East"),
-    ("STG-DD130-27", "East"),
-    ("STG-DD130-28", "East"),
-    # DD131 — 18 positions
+    # DD131 — 16 positions
     ("STG-DD131-1", "East"),
     ("STG-DD131-2", "East"),
     ("STG-DD131-3", "East"),
@@ -350,9 +338,7 @@ PAIRS = [
     ("STG-DD131-14", "East"),
     ("STG-DD131-15", "East"),
     ("STG-DD131-16", "East"),
-    ("STG-DD131-17", "East"),
-    ("STG-DD131-18", "East"),
-    # DD132 — 18 positions
+    # DD132 — 32 positions
     ("STG-DD132-1", "East"),
     ("STG-DD132-2", "East"),
     ("STG-DD132-3", "East"),
@@ -371,6 +357,20 @@ PAIRS = [
     ("STG-DD132-16", "East"),
     ("STG-DD132-17", "East"),
     ("STG-DD132-18", "East"),
+    ("STG-DD132-19", "East"),
+    ("STG-DD132-20", "East"),
+    ("STG-DD132-21", "East"),
+    ("STG-DD132-22", "East"),
+    ("STG-DD132-23", "East"),
+    ("STG-DD132-24", "East"),
+    ("STG-DD132-25", "East"),
+    ("STG-DD132-26", "East"),
+    ("STG-DD132-27", "East"),
+    ("STG-DD132-28", "East"),
+    ("STG-DD132-29", "East"),
+    ("STG-DD132-30", "East"),
+    ("STG-DD132-31", "East"),
+    ("STG-DD132-32", "East"),
 ]
 
 # ─── Derived helpers ────────────────────────────────────────────────
