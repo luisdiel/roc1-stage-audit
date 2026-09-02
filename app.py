@@ -9,12 +9,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, date
 import pytz
-from database import (
-    init_supabase,
-    insert_audit,
-    get_audits_by_date,
-    get_all_audits,
-)
+from database import get_database
 from locations import LOCATIONS
 from qr_map import get_location_from_uuid
 
@@ -28,11 +23,12 @@ st.set_page_config(
 # ── Constants ────────────────────────────────────────────────
 EASTERN = pytz.timezone("America/New_York")
 SHIFTS = ["FHN (Sun–Wed)", "BHN (Wed–Sat)", "FHD (Sun–Wed)", "BHD (Wed–Sat)"]
-AUDIT_RESULTS = ["Pass ✅", "Fail ❌", "N/A ⚪"]
+STATUS_OPTIONS = ["Green ✅", "Yellow ⚠️", "Red ❌"]
+PERIODS = ["Period 1", "Period 2", "Period 3"]
 
 # ── Session State Initialization ─────────────────────────────
-if "supabase" not in st.session_state:
-    st.session_state.supabase = init_supabase()
+if "db" not in st.session_state:
+    st.session_state.db = get_database()
 
 if "auditor_name" not in st.session_state:
     st.session_state.auditor_name = ""
@@ -40,8 +36,6 @@ if "auditor_name" not in st.session_state:
 if "selected_shift" not in st.session_state:
     st.session_state.selected_shift = SHIFTS[0]
 
-# FIX: selected_location stored in session_state
-# Prevents NameError and persists across Streamlit reruns
 if "selected_location" not in st.session_state:
     st.session_state.selected_location = None
 
@@ -92,6 +86,9 @@ if page == "🔍 New Audit":
         st.warning("⚠️ Please enter your login in the sidebar to begin.")
         st.stop()
 
+    now = datetime.now(EASTERN)
+    audit_date = now.strftime("%Y-%m-%d")
+
     # ── Location Selection ───────────────────────────────────
     st.subheader("📍 Select Location")
 
@@ -114,7 +111,6 @@ if page == "🔍 New Audit":
                 st.error("❌ QR code not recognized. Try manual select.")
                 st.session_state.selected_location = None
         else:
-            # Don't clear if a manual selection was already made
             if not st.session_state.selected_location:
                 st.session_state.selected_location = None
 
@@ -147,58 +143,54 @@ if page == "🔍 New Audit":
             col1, col2 = st.columns(2)
 
             with col1:
-                audit_result = st.radio(
-                    "Audit Result",
-                    AUDIT_RESULTS,
+                status = st.radio(
+                    "Status",
+                    STATUS_OPTIONS,
                     horizontal=True,
                 )
+                period = st.selectbox("Period", PERIODS)
 
             with col2:
-                condition = st.selectbox(
-                    "Stage Condition",
-                    [
-                        "Clean & Organized",
-                        "Needs Attention",
-                        "Safety Concern",
-                        "Missing Label/Sign",
-                        "Blocked/Obstructed",
-                        "Other",
-                    ],
+                container = st.text_input(
+                    "Container ID (optional)",
+                    placeholder="Scan or type container...",
                 )
 
-            notes = st.text_area(
-                "Notes (optional)",
-                placeholder="Any additional observations...",
-                max_chars=500,
-            )
+            st.markdown("**Issue Flags:**")
+            flag_col1, flag_col2, flag_col3, flag_col4 = st.columns(4)
+            with flag_col1:
+                mix = st.checkbox("Mix/Match")
+            with flag_col2:
+                pvm = st.checkbox("PVM Issue")
+            with flag_col3:
+                lbl = st.checkbox("Label Problem")
+            with flag_col4:
+                qr_issue = st.checkbox("QR Issue")
 
             submitted = st.form_submit_button(
                 "✅ Submit Audit", use_container_width=True
             )
 
             if submitted:
-                now = datetime.now(EASTERN)
-                audit_data = {
-                    "audit_date": now.strftime("%Y-%m-%d"),
-                    "audit_time": now.strftime("%H:%M:%S"),
-                    "auditor": st.session_state.auditor_name,
-                    "shift": st.session_state.selected_shift,
-                    "location": st.session_state.selected_location,
-                    "result": audit_result,
-                    "condition": condition,
-                    "notes": notes,
-                }
-
                 try:
-                    insert_audit(
-                        st.session_state.supabase, audit_data
+                    st.session_state.db.save_audit(
+                        location=st.session_state.selected_location,
+                        shift=st.session_state.selected_shift,
+                        audit_date=audit_date,
+                        period=period,
+                        status=status,
+                        container=container,
+                        mix=mix,
+                        pvm=pvm,
+                        lbl=lbl,
+                        qr_issue=qr_issue,
+                        auditor=st.session_state.auditor_name,
                     )
                     st.success(
                         f"✅ Audit submitted for "
                         f"**{st.session_state.selected_location}**!"
                     )
                     st.balloons()
-                    # Clear selection after successful submit
                     st.session_state.selected_location = None
                 except Exception as e:
                     st.error(f"❌ Error saving audit: {e}")
@@ -210,40 +202,47 @@ if page == "🔍 New Audit":
 elif page == "📊 Dashboard":
     st.header("📊 Audit Dashboard")
 
-    # Date filter
-    col_date1, col_date2 = st.columns(2)
-    with col_date1:
-        view_date = st.date_input(
-            "Select Date", value=date.today()
-        )
+    now = datetime.now(EASTERN)
 
-    # Fetch data
-    audits = get_audits_by_date(
-        st.session_state.supabase,
-        view_date.strftime("%Y-%m-%d"),
+    # Filters
+    col_f1, col_f2 = st.columns(2)
+    with col_f1:
+        view_date = st.date_input("Select Date", value=date.today())
+    with col_f2:
+        view_shift = st.selectbox("Select Shift", SHIFTS)
+
+    # Fetch data using db.get_audits(shift, date)
+    audits = st.session_state.db.get_audits(
+        shift=view_shift,
+        audit_date=view_date.strftime("%Y-%m-%d"),
     )
 
     if not audits:
         st.info(
-            f"📭 No audits found for {view_date.strftime('%m/%d/%Y')}."
+            f"📭 No audits found for {view_date.strftime('%m/%d/%Y')} "
+            f"— {view_shift}."
         )
         st.stop()
 
-    df = pd.DataFrame(audits)
+    # Convert dict to DataFrame
+    rows = []
+    for loc, data in audits.items():
+        rows.append({"location": loc, **data})
+    df = pd.DataFrame(rows)
 
     # ── KPI Cards ────────────────────────────────────────────
     st.subheader("📈 Summary")
     k1, k2, k3, k4 = st.columns(4)
 
     total = len(df)
-    passes = len(df[df["result"].str.contains("Pass")])
-    fails = len(df[df["result"].str.contains("Fail")])
-    pass_rate = (passes / total * 100) if total > 0 else 0
+    greens = len(df[df["status"].str.contains("Green", na=False)])
+    reds = len(df[df["status"].str.contains("Red", na=False)])
+    green_rate = (greens / total * 100) if total > 0 else 0
 
     k1.metric("Total Audits", total)
-    k2.metric("Passed", passes)
-    k3.metric("Failed", fails)
-    k4.metric("Pass Rate", f"{pass_rate:.1f}%")
+    k2.metric("Green ✅", greens)
+    k3.metric("Red ❌", reds)
+    k4.metric("Green Rate", f"{green_rate:.1f}%")
 
     # ── Coverage Progress ────────────────────────────────────
     st.subheader("📍 Coverage Progress")
@@ -269,39 +268,53 @@ elif page == "📊 Dashboard":
     door_summary = (
         df.groupby("door")
         .agg(
-            Total=("result", "count"),
-            Passed=(
-                "result",
-                lambda x: x.str.contains("Pass").sum(),
+            Total=("status", "count"),
+            Green=(
+                "status",
+                lambda x: x.str.contains("Green", na=False).sum(),
             ),
-            Failed=(
-                "result",
-                lambda x: x.str.contains("Fail").sum(),
+            Red=(
+                "status",
+                lambda x: x.str.contains("Red", na=False).sum(),
             ),
         )
         .reset_index()
     )
-    door_summary["Pass Rate"] = (
-        door_summary["Passed"] / door_summary["Total"] * 100
+    door_summary["Green Rate"] = (
+        door_summary["Green"] / door_summary["Total"] * 100
     ).round(1)
     st.dataframe(
         door_summary, use_container_width=True, hide_index=True
     )
 
+    # ── Issue Flags Summary ──────────────────────────────────
+    st.subheader("🚩 Issue Flags")
+    issue_cols = {
+        "mix": "Mix/Match",
+        "pvm": "PVM Issue",
+        "lbl": "Label Problem",
+        "qr_issue": "QR Issue",
+    }
+    issue_counts = {}
+    for col, label in issue_cols.items():
+        if col in df.columns:
+            issue_counts[label] = int(df[col].sum())
+    if issue_counts:
+        ic1, ic2, ic3, ic4 = st.columns(4)
+        cols = [ic1, ic2, ic3, ic4]
+        for i, (label, count) in enumerate(issue_counts.items()):
+            cols[i].metric(label, count)
+
     # ── Detailed Table ───────────────────────────────────────
     st.subheader("📋 All Audits")
+    display_cols = [
+        c for c in [
+            "location", "status", "period", "container",
+            "mix", "pvm", "lbl", "qr_issue", "auditor", "timestamp"
+        ] if c in df.columns
+    ]
     st.dataframe(
-        df[
-            [
-                "audit_time",
-                "auditor",
-                "shift",
-                "location",
-                "result",
-                "condition",
-                "notes",
-            ]
-        ],
+        df[display_cols],
         use_container_width=True,
         hide_index=True,
     )
@@ -319,46 +332,51 @@ elif page == "📥 Export Data":
     with col_exp2:
         end_date = st.date_input("End Date", value=date.today())
 
-    if st.button("🔄 Load Data", use_container_width=True):
-        all_audits = get_all_audits(st.session_state.supabase)
+    # Optional filters
+    col_f1, col_f2 = st.columns(2)
+    with col_f1:
+        shift_filter = st.selectbox(
+            "Filter by Shift", ["All"] + SHIFTS
+        )
+    with col_f2:
+        auditor_filter = st.text_input(
+            "Filter by Auditor (optional)",
+            placeholder="Login or 'All'",
+            value="All",
+        )
 
-        if all_audits:
-            df_all = pd.DataFrame(all_audits)
-            df_all["audit_date"] = pd.to_datetime(
-                df_all["audit_date"]
+    if st.button("🔄 Load Data", use_container_width=True):
+        history = st.session_state.db.get_history(
+            date_from=start_date.strftime("%Y-%m-%d"),
+            date_to=end_date.strftime("%Y-%m-%d"),
+            shift_filter=shift_filter if shift_filter != "All" else None,
+            auditor_filter=auditor_filter if auditor_filter != "All" else None,
+        )
+
+        if history:
+            df_hist = pd.DataFrame(history)
+
+            st.success(
+                f"✅ Found {len(df_hist)} audits from "
+                f"{start_date.strftime('%m/%d/%Y')} to "
+                f"{end_date.strftime('%m/%d/%Y')}"
+            )
+            st.dataframe(
+                df_hist,
+                use_container_width=True,
+                hide_index=True,
             )
 
-            mask = (
-                df_all["audit_date"].dt.date >= start_date
-            ) & (df_all["audit_date"].dt.date <= end_date)
-            df_filtered = df_all[mask]
-
-            if not df_filtered.empty:
-                st.success(
-                    f"✅ Found {len(df_filtered)} audits from "
-                    f"{start_date.strftime('%m/%d/%Y')} to "
-                    f"{end_date.strftime('%m/%d/%Y')}"
-                )
-                st.dataframe(
-                    df_filtered,
-                    use_container_width=True,
-                    hide_index=True,
-                )
-
-                csv = df_filtered.to_csv(index=False)
-                st.download_button(
-                    label="📥 Download CSV",
-                    data=csv,
-                    file_name=(
-                        f"ROC1_audits_{start_date}_{end_date}.csv"
-                    ),
-                    mime="text/csv",
-                    use_container_width=True,
-                )
-            else:
-                st.warning(
-                    "No audits found for the selected date range."
-                )
+            csv = df_hist.to_csv(index=False)
+            st.download_button(
+                label="📥 Download CSV",
+                data=csv,
+                file_name=(
+                    f"ROC1_audits_{start_date}_{end_date}.csv"
+                ),
+                mime="text/csv",
+                use_container_width=True,
+            )
         else:
-            st.info("📭 No audit data available yet.")
+            st.info("📭 No audit data found for the selected filters.")
 
