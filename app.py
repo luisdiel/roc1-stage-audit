@@ -40,8 +40,10 @@ if "auditor_name" not in st.session_state:
 if "selected_shift" not in st.session_state:
     st.session_state.selected_shift = SHIFTS[0]
 
-if "scan_input" not in st.session_state:
-    st.session_state.scan_input = ""
+# FIX: selected_location stored in session_state
+# Prevents NameError and persists across Streamlit reruns
+if "selected_location" not in st.session_state:
+    st.session_state.selected_location = None
 
 # ── Sidebar ──────────────────────────────────────────────────
 with st.sidebar:
@@ -107,12 +109,14 @@ if page == "🔍 New Audit":
             location = get_location_from_uuid(scan_input.strip())
             if location:
                 st.success(f"✅ Location detected: **{location}**")
-                selected_location = location
+                st.session_state.selected_location = location
             else:
                 st.error("❌ QR code not recognized. Try manual select.")
-                selected_location = None
+                st.session_state.selected_location = None
         else:
-            selected_location = None
+            # Don't clear if a manual selection was already made
+            if not st.session_state.selected_location:
+                st.session_state.selected_location = None
 
     with tab_manual:
         # Group locations by door
@@ -126,13 +130,18 @@ if page == "🔍 New Audit":
         manual_location = st.selectbox(
             "Select Position", door_locations
         )
-        if st.button("Use this location", key="use_manual"):
-            selected_location = manual_location
+        if st.button("✅ Use this location", key="use_manual", use_container_width=True):
+            st.session_state.selected_location = manual_location
+            st.rerun()
+
+    # Show current selection
+    if st.session_state.selected_location:
+        st.info(f"📍 Selected: **{st.session_state.selected_location}**")
 
     # ── Audit Form ───────────────────────────────────────────
-    if selected_location:
+    if st.session_state.selected_location:
         st.divider()
-        st.subheader(f"📋 Audit: {selected_location}")
+        st.subheader(f"📋 Audit: {st.session_state.selected_location}")
 
         with st.form("audit_form", clear_on_submit=True):
             col1, col2 = st.columns(2)
@@ -174,7 +183,7 @@ if page == "🔍 New Audit":
                     "audit_time": now.strftime("%H:%M:%S"),
                     "auditor": st.session_state.auditor_name,
                     "shift": st.session_state.selected_shift,
-                    "location": selected_location,
+                    "location": st.session_state.selected_location,
                     "result": audit_result,
                     "condition": condition,
                     "notes": notes,
@@ -185,9 +194,12 @@ if page == "🔍 New Audit":
                         st.session_state.supabase, audit_data
                     )
                     st.success(
-                        f"✅ Audit submitted for **{selected_location}**!"
+                        f"✅ Audit submitted for "
+                        f"**{st.session_state.selected_location}**!"
                     )
                     st.balloons()
+                    # Clear selection after successful submit
+                    st.session_state.selected_location = None
                 except Exception as e:
                     st.error(f"❌ Error saving audit: {e}")
 
@@ -237,7 +249,11 @@ elif page == "📊 Dashboard":
     st.subheader("📍 Coverage Progress")
     total_locations = len(LOCATIONS)
     audited_locations = df["location"].nunique()
-    coverage = (audited_locations / total_locations * 100) if total_locations > 0 else 0
+    coverage = (
+        (audited_locations / total_locations * 100)
+        if total_locations > 0
+        else 0
+    )
 
     st.progress(coverage / 100)
     st.caption(
@@ -254,15 +270,23 @@ elif page == "📊 Dashboard":
         df.groupby("door")
         .agg(
             Total=("result", "count"),
-            Passed=("result", lambda x: x.str.contains("Pass").sum()),
-            Failed=("result", lambda x: x.str.contains("Fail").sum()),
+            Passed=(
+                "result",
+                lambda x: x.str.contains("Pass").sum(),
+            ),
+            Failed=(
+                "result",
+                lambda x: x.str.contains("Fail").sum(),
+            ),
         )
         .reset_index()
     )
     door_summary["Pass Rate"] = (
         door_summary["Passed"] / door_summary["Total"] * 100
     ).round(1)
-    st.dataframe(door_summary, use_container_width=True, hide_index=True)
+    st.dataframe(
+        door_summary, use_container_width=True, hide_index=True
+    )
 
     # ── Detailed Table ───────────────────────────────────────
     st.subheader("📋 All Audits")
@@ -300,11 +324,13 @@ elif page == "📥 Export Data":
 
         if all_audits:
             df_all = pd.DataFrame(all_audits)
-            df_all["audit_date"] = pd.to_datetime(df_all["audit_date"])
-
-            mask = (df_all["audit_date"].dt.date >= start_date) & (
-                df_all["audit_date"].dt.date <= end_date
+            df_all["audit_date"] = pd.to_datetime(
+                df_all["audit_date"]
             )
+
+            mask = (
+                df_all["audit_date"].dt.date >= start_date
+            ) & (df_all["audit_date"].dt.date <= end_date)
             df_filtered = df_all[mask]
 
             if not df_filtered.empty:
@@ -314,19 +340,25 @@ elif page == "📥 Export Data":
                     f"{end_date.strftime('%m/%d/%Y')}"
                 )
                 st.dataframe(
-                    df_filtered, use_container_width=True, hide_index=True
+                    df_filtered,
+                    use_container_width=True,
+                    hide_index=True,
                 )
 
                 csv = df_filtered.to_csv(index=False)
                 st.download_button(
                     label="📥 Download CSV",
                     data=csv,
-                    file_name=f"ROC1_audits_{start_date}_{end_date}.csv",
+                    file_name=(
+                        f"ROC1_audits_{start_date}_{end_date}.csv"
+                    ),
                     mime="text/csv",
                     use_container_width=True,
                 )
             else:
-                st.warning("No audits found for the selected date range.")
+                st.warning(
+                    "No audits found for the selected date range."
+                )
         else:
             st.info("📭 No audit data available yet.")
 
