@@ -66,3 +66,11 @@ def learn_uuid(uuid: str, stg_location: str, qr_map: dict) -> dict:
     save_qr_map(qr_map)
     return qr_map
 
+
+def get_location_from_uuid(uuid_input: str) -> str:
+    """Look up a UUID and return the STG location, or None."""
+    qr_map = load_qr_map()
+    result, source = resolve_scan(uuid_input, qr_map)
+    if source in ('direct', 'qr_map'):
+        return result
+    return None
