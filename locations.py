@@ -378,6 +378,7 @@ LOC_AREA  = {loc: area for loc, area in PAIRS}
 ALL_LOCATIONS = [loc for loc, _ in PAIRS]
 AREAS = sorted(set(area for _, area in PAIRS))
 TT_BASE = len(ALL_LOCATIONS)
+v
 
 
 
