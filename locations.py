@@ -379,6 +379,7 @@ ALL_LOCATIONS = [loc for loc, _ in PAIRS]
 AREAS = sorted(set(area for _, area in PAIRS))
 TT_BASE = len(ALL_LOCATIONS)
 LOCATIONS = ALL_LOCATIONS
+TT_BASE = "https://trans-logistics.amazon.com/sortcenter/tantei?nodeId=ROC1"
 
 
 
