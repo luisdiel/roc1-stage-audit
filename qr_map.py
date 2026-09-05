@@ -8,7 +8,7 @@ import csv
 import os
 from pathlib import Path
 
-# Path to the CSV file (changed from DAB2 to ROC1)
+# Path to the CSV file
 QR_MAP_FILE = Path(__file__).parent / "ROC1_qr_map.csv"
 
 
@@ -18,10 +18,29 @@ def load_qr_map() -> dict:
     if QR_MAP_FILE.exists():
         with open(QR_MAP_FILE, 'r', newline='') as f:
             reader = csv.DictReader(f)
-            for row in reader:
-                uuid = row['QR_UUID'].strip().upper()
-                stg = row['STG_Location'].strip().upper()
-                qr_map[uuid] = stg
+            # Normalize headers to handle any case/naming variation
+            headers = reader.fieldnames or []
+            # Find the STG location column
+            stg_col = None
+            uuid_col = None
+            for h in headers:
+                h_upper = h.strip().upper()
+                if 'STG' in h_upper or 'LOCATION' in h_upper:
+                    stg_col = h
+                if 'UUID' in h_upper or 'QR' in h_upper:
+                    uuid_col = h
+            # Fallback: use first and second columns
+            if not stg_col and len(headers) >= 1:
+                stg_col = headers[0]
+            if not uuid_col and len(headers) >= 2:
+                uuid_col = headers[1]
+
+            if stg_col and uuid_col:
+                for row in reader:
+                    stg = (row.get(stg_col) or '').strip().upper()
+                    uuid = (row.get(uuid_col) or '').strip().upper()
+                    if uuid and stg:
+                        qr_map[uuid] = stg
     return qr_map
 
 
@@ -39,7 +58,7 @@ def resolve_scan(scan_input: str, qr_map: dict) -> tuple:
     Resolve a scan input to a STG location.
 
     Returns: (stg_id, source)
-    - source: 'direct' if typed STG-ID, 'qr_map' if UUID resolved, 'unknown' if UUID not found
+    - source: 'direct' if typed STG-ID, 'qr_map' if UUID resolved, 'unknown' if not found
     """
     scan = scan_input.strip().upper()
 
@@ -52,25 +71,24 @@ def resolve_scan(scan_input: str, qr_map: dict) -> tuple:
         return qr_map[scan], 'qr_map'
 
     # Unknown UUID
-    return scan, 'unknown'
+    return None, 'unknown'
 
 
-def learn_uuid(uuid: str, stg_location: str, qr_map: dict) -> dict:
-    """
-    Learn a new UUID → STG mapping and save to CSV.
-    Returns updated qr_map.
-    """
+def learn_uuid(uuid: str, stg_id: str, qr_map: dict) -> dict:
+    """Add a new UUID → STG mapping and persist it."""
     uuid = uuid.strip().upper()
-    stg_location = stg_location.strip().upper()
-    qr_map[uuid] = stg_location
+    stg_id = stg_id.strip().upper()
+    qr_map[uuid] = stg_id
     save_qr_map(qr_map)
     return qr_map
 
 
-def get_location_from_uuid(uuid_input: str) -> str:
-    """Look up a UUID and return the STG location, or None."""
-    qr_map = load_qr_map()
-    result, source = resolve_scan(uuid_input, qr_map)
-    if source in ('direct', 'qr_map'):
+def get_location_from_uuid(uuid: str, qr_map: dict = None) -> str:
+    """Get STG location from UUID. Loads map if not provided."""
+    if qr_map is None:
+        qr_map = load_qr_map()
+    result = qr_map.get(uuid.strip().upper())
+    if result:
         return result
     return None
+
